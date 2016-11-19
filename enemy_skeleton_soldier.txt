@@ -1,0 +1,1 @@
+skeleton_soldier 2 50 5 9 4 40.

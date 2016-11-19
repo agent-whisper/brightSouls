@@ -1,0 +1,1 @@
+undead_knight 3 100 7 10 6 80.
