@@ -64,6 +64,7 @@ char enemy_command_generate ();
 void battle_interaction(List player_command, Queue enemy_command, STATS *player_stats, STATS *enemy_current);
 void battle_transition (char* map_name, int x, int y);
 void Get_Exp(STATS *player_current, int enemy_exp);
+void player_lvl_up(int *HP, int *MP, int MaxHp, int MaxMP);
 int lvl_up(int current_level);
 
 //Lain-lain
@@ -192,7 +193,7 @@ void new_game()
 		string_concat (name, " 1 100 10 10 5 0 0."); 
 
 		player_data = fopen (player_name, "a+");
-			fputs (name, player_data);
+		fputs (name, player_data);
 		fclose(player_data);
 		
 		//Load stats player
@@ -205,7 +206,7 @@ void new_game()
 		string_concat (player_name, "_skill.txt");
 
 		player_data = fopen (player_name, "a+");
-			fputs ("(God's_Blessing|0|2(Warrior's_Strength|0|3(Warcry|0|4()()())(Backstab|0|4()()())(Disarm|0|4()()()))()(Knight's_Fortitude|0|3(6th_Sense|0|4()()())(Riposte|0|4()()())()).", player_data);
+		fputs ("(God's_Blessing|0|2(Warrior's_Strength|0|3(Warcry|0|4()()())(Backstab|0|4()()())(Disarm|0|4()()()))()(Knight's_Fortitude|0|3(Purification|0|4()()())(Dragon_Slave|0|4(Laguna_Blade|0|6()()())(Desolator|0|6()()())())()).", player_data);
 		fclose(player_data);
 		load_player_skill(&skill_tree, player_name);
 
@@ -417,7 +418,8 @@ void start_game()
 			player_current.STR+=3;
 			player_current.DEF+=3;
 			player_current.UP+=1;
-
+			
+			player_lvl_up(&player_HP_current, &player_MP_current, (player_current).HP, (player_current).MP);
 			pressEnterPrompt;
 			getchar();
 		}
@@ -672,12 +674,12 @@ void  load_player_skill(TriTree *P, char* file_name)
 
 void player_choose_skill(char* s, STATS *player)
 {
-	//(God's_Blessing|0|2(Warrior's_Strength|0|3(Warcry|0|4()()())(Backstab|0|4()()())(Disarm|0|4()()()))()(Knight's_Fortitude|0|2(6th_Sense|0|4()()())(Riposte|0|4()()())()).
+	//(God's_Blessing|0|2(Warrior's_Strength|0|3(Warcry|0|4()()())(Backstab|0|4()()())(Disarm|0|4()()()))()(Knight's_Fortitude|0|3(Purification|0|4()()())(Dragon_Slave|0|4(Laguna_Blade|0|6()()())(Desolator|0|6()()())())()).
 	TriTree P;
 
 	P = SearchPB(skill_tree, s);
 
-	if (P!= NULL && Level(P) <= (*player).LVL && !Taken(P))
+	if (P!= NULL && (Level(P) <= (*player).LVL && !Taken(P)))
 	{
 		if (string_compare(Skill(P),"God's_Blessing"))
 		{
@@ -706,6 +708,7 @@ void player_choose_skill(char* s, STATS *player)
 		printf ("Anda sudah mengambil skill itu.\n");
 	}
 }
+
 /////////////////////////////////	END		///////////////////////////////////////////////////////
 
 /********************************	SEGALA TENTANG MUSUH		**********************************************/
@@ -891,6 +894,9 @@ void battle_transition (char* map_name, int x, int y) //MUNGKIN PEMBACAAN AKSI F
 								case 'F':	InsVLast (&player_command, action_name);
 											action++;
 										break;
+								case 'S':	InsVLast(&player_command, action_name);
+											action++;
+										break;
 								case 'E':	DelVLast (&player_command, &buffer);
 											action--;
 										break;
@@ -1018,16 +1024,12 @@ void battle_transition (char* map_name, int x, int y) //MUNGKIN PEMBACAAN AKSI F
 								case 'F':	InsVLast (&player_command, action_name);
 											action++;
 										break;
+								case 'S':	InsVLast(&player_command, action_name);
+											action++;
+										break;
 								case 'E':	DelVLast (&player_command, &buffer);
 											action--;
 										break;
-								case 'S':	/*
-											Jika ada skill
-												-tampilkan skill
-												-input pilihan
-												-simpan pilihan
-												
-								*/
 								default	: break;
 							}				
 						}
@@ -1147,6 +1149,9 @@ void battle_transition (char* map_name, int x, int y) //MUNGKIN PEMBACAAN AKSI F
 								case 'F':	InsVLast (&player_command, action_name);
 											action++;
 										break;
+								case 'S':	InsVLast(&player_command, action_name);
+											action++;
+										break;
 								case 'E':	DelVLast (&player_command, &buffer);
 											action--;
 										break;
@@ -1233,12 +1238,18 @@ void battle_interaction(List player_command, Queue enemy_command, STATS *player_
 					A vs B || B vs B = Tidak terjadi kalkulasi damage,
 					A vs F = karakter beraksi F menerima damage,
 					F vs B = karakter beraksi B menerima damage,
+					S vs A = tergantung skill
+					S vs B = tergantung skill (cenderung mengurangi damage)
+					S vs F = tergantung skill (cenderung tidak akan menyerang)
 					
 				
 */
 {
 	char enemy_command_buffer[4];
 	char player_command_buffer[4];
+	char skill_choice[50];
+	TriTree P;
+	
 	int i;
 	
 	for (i = 0; i <= 3; i++)
@@ -1264,7 +1275,7 @@ void battle_interaction(List player_command, Queue enemy_command, STATS *player_
 	
 	i = 0;
 	while (i <= 3 && !enemy_dead && !player_dead)
-	{
+
 		
 			
 		if (player_command_buffer[i] == 'A' && enemy_command_buffer[i] =='A')
@@ -1313,7 +1324,295 @@ void battle_interaction(List player_command, Queue enemy_command, STATS *player_
 		{
 			printf ("%s tried to attack!", (*enemy_current).name);newLine;
 			printf ("But %s blocked!", (*player_current).name);newLine;
-		}
+		}else if(player_command_buffer[i]=='S' && enemy_command_buffer[i] =='A'){
+			PrintTreeActive(skill_tree);
+			newLine;
+			printf ("Masukkan nama skill yang ingin dipakai: ");
+			scanf("%s", skill_choice); getchar();
+			P = SearchPB(skill_tree, skill_choice);
+			
+			if (string_compare(Skill(P), "Purification")){
+				if(player_MP_current>=20){
+					player_HP_current+=((*player_current).LVL*15);
+					if ((player_HP_current+=((*player_current).LVL*15))>((*player_current).HP)){
+						player_HP_current=(*player_current).HP;
+					}
+					player_MP_current-=20;
+					printf("%s healed for %d HP", (*player_current).name, (*player_current).LVL*10); newLine;
+					printf ("%s attacked! You suffered %d damage!", (*enemy_current).name, abszero((*enemy_current).STR - (*player_current).DEF));newLine;
+					player_HP_current -= abszero((*enemy_current).STR - (*player_current).DEF);
+				}
+				else{
+					printf("Anda tidak memiliki mana yang cukup!");
+				}
+			}
+			else if(string_compare(Skill(P), "Dragon_Slave")){
+				if(player_MP_current>=20){
+					(player__active_modifier).STR=((*player_current).STR)*3;
+					player_MP_current-=20;
+					printf ("%s attacked! You suffered %d damage!", (*enemy_current).name, abszero((*enemy_current).STR - (*player_current).DEF));newLine;
+					printf ("%s activated skill dragon_slave! Enemy suffered %d damage!", (*player_current).name, abszero((player__active_modifier).STR - (*enemy_current).DEF));newLine;
+					player_HP_current -= abszero((*enemy_current).STR - (*player_current).DEF);
+					enemy_HP_current -= abszero((player__active_modifier).STR - (*enemy_current).DEF);
+				}
+				else{
+					printf("Anda tidak memiliki mana yang cukup!");
+				}
+			}
+			else if(string_compare(Skill(P), "Laguna_Blade")){
+				if(player_MP_current>=40){
+					(player__active_modifier).STR=((*player_current).STR)*7;
+					player_MP_current-=40;
+					printf ("%s attacked! You suffered %d damage!", (*enemy_current).name, abszero((*enemy_current).STR - (*player_current).DEF));newLine;
+					printf ("%s activated skill laguna_blade! Enemy suffered %d damage!", (*player_current).name, abszero((player__active_modifier).STR - (*enemy_current).DEF));newLine;
+					player_HP_current -= abszero((*enemy_current).STR - (*player_current).DEF);
+					enemy_HP_current -= abszero((player__active_modifier).STR - (*enemy_current).DEF);
+				}
+				else{
+					printf("Anda tidak memiliki mana yang cukup!");
+				}
+			}
+			else if(string_compare(Skill(P), "Desolator")){
+				if(player_MP_current>=25){
+					(*enemy_current).DEF=abszero((*enemy_current).DEF-25);
+					player_MP_current-=25;
+					printf ("%s attacked! You suffered %d damage!", (*enemy_current).name, abszero((*enemy_current).STR - (*player_current).DEF));newLine;
+					printf("%s activated skill desolator, enemy DEF has fallen!", (*player_current).name);newLine;
+					player_HP_current -= abszero((*enemy_current).STR - (*player_current).DEF);
+				}
+			}
+			else if(string_compare(Skill(P), "Warcry")){
+				if(player_MP_current>=10){
+					(player__active_modifier).STR=((*player_current).STR)*2;
+					player_MP_current-=10;
+					printf ("%s attacked! You suffered %d damage!", (*enemy_current).name, abszero((*enemy_current).STR - (*player_current).DEF));newLine;
+					printf ("%s activated skill warcry! Enemy suffered %d damage!", (*player_current).name, abszero((player__active_modifier).STR - (*enemy_current).DEF));newLine;
+					player_HP_current -= abszero((*enemy_current).STR - (*player_current).DEF);
+					enemy_HP_current -= abszero((player__active_modifier).STR - (*enemy_current).DEF);
+				}
+				else{
+					printf("Anda tidak memiliki mana yang cukup!");
+				}
+			}
+				else if(string_compare(Skill(P), "Backstab")){
+				if(player_MP_current>=15){
+					(*enemy_current).DEF=abszero((*enemy_current).DEF-5);
+					player_MP_current-=15;
+					printf ("%s attacked! You suffered %d damage!", (*enemy_current).name, abszero((*enemy_current).STR - (*player_current).DEF));newLine;
+					printf ("%s activated skill backstab! Enemy DEF has fallen!", (*player_current).name);newLine;
+					player_HP_current -= abszero((*enemy_current).STR - (*player_current).DEF);
+					enemy_HP_current -= abszero((*player_current).STR - (*enemy_current).DEF);
+				}
+				else{
+					printf("Anda tidak memiliki mana yang cukup!");
+				}
+			}
+			else if(string_compare(Skill(P), "Disarm")){
+				if(player_MP_current>=20){
+					(*enemy_current).DEF=abszero((*enemy_current).DEF-15);
+					player_MP_current-=20;
+					printf ("%s tried to attacked!", (*enemy_current).name);newLine;
+					printf ("But %s activated skill Disarm! Enemy DEF has fallen!", (*player_current).name);newLine;
+				}
+				else{
+					printf("Anda tidak memiliki mana yang cukup!");
+				}
+			}
+			else{
+				printf("Skill tidak terdaftar");newLine;
+			}
+		 }
+		 else if(player_command_buffer[i]=='S' && enemy_command_buffer[i] =='B'){
+			PrintTreeActive(skill_tree);
+			newLine;
+			printf ("Masukkan nama skill yang ingin dipakai: ");
+			scanf("%s", skill_choice); getchar();
+			P = SearchPB(skill_tree, skill_choice);
+			
+			if (string_compare(Skill(P), "Purification")){
+				if(player_MP_current>=20){
+					player_HP_current+=((*player_current).LVL*15);
+					if ((player_HP_current+=((*player_current).LVL*15))>((*player_current).HP)){
+						player_HP_current=(*player_current).HP;
+					}
+					player_MP_current-=20;
+					printf("%s healed for %d HP", (*player_current).name, (*player_current).LVL*10); newLine;
+					printf ("%s Blocked, nothing happened!", (*enemy_current).name);newLine;
+				}
+				else{
+					printf("Anda tidak memiliki mana yang cukup!");
+				}
+			}
+			else if(string_compare(Skill(P), "Dragon_Slave")){
+				if(player_MP_current>=20){
+					(player__active_modifier).STR=((*player_current).STR)*3;
+					(*enemy_current).DEF+=50;
+					player_MP_current-=20;
+					printf ("%s activated skill dragon_slave!", (*player_current).name);newLine;
+					printf ("But %s blocked! It's not as effective...!", (*enemy_current).name);newLine;
+					enemy_HP_current -= abszero((player__active_modifier).STR - (*enemy_current).DEF);
+					(*enemy_current).DEF-=50;
+				}
+				else{
+					printf("Anda tidak memiliki mana yang cukup!");
+				}
+			}
+			else if(string_compare(Skill(P), "Laguna_Blade")){
+				if(player_MP_current>=40){
+					(player__active_modifier).STR=((*player_current).STR)*7;
+					(*enemy_current).DEF+=50;
+					player_MP_current-=40;
+					printf ("%s activated skill laguna_blade!", (*player_current).name);newLine;
+					printf ("But %s blocked!It's not as effective...", (*enemy_current).name);newLine;
+					enemy_HP_current -= abszero((player__active_modifier).STR - (*enemy_current).DEF);
+					(*enemy_current).DEF-=50;
+				}
+				else{
+					printf("Anda tidak memiliki mana yang cukup!");
+				}
+			}
+			else if(string_compare(Skill(P), "Desolator")){
+				if(player_MP_current>=25){
+					(*enemy_current).DEF=abszero((*enemy_current).DEF-15);
+					player_MP_current-=15;
+					printf("%s activated skill desolator", (*player_current).name);newLine;
+					printf ("But %s blocked!It's not as effective...", (*enemy_current).name);newLine;
+				}
+			}
+			else if(string_compare(Skill(P), "Warcry")){
+				if(player_MP_current>=10){
+					(player__active_modifier).STR=((*player_current).STR)*2;
+					player_MP_current-=10;
+					(*enemy_current).DEF+=50;
+					printf ("%s activated skill warcry!", (*player_current).name);newLine;
+					printf ("But %s blocked!It's not as effective...", (*enemy_current).name);newLine;
+					enemy_HP_current -= abszero((player__active_modifier).STR - (*enemy_current).DEF);
+					(*enemy_current).DEF-=50;
+				}
+				else{
+					printf("Anda tidak memiliki mana yang cukup!");
+				}
+			}
+				else if(string_compare(Skill(P), "Backstab")){
+				if(player_MP_current>=15){
+					(*enemy_current).DEF=abszero((*enemy_current).DEF-5);
+					player_MP_current-=15;
+					printf ("%s activated skill backstab! Enemy DEF has fallen!", (*player_current).name);newLine;
+					printf ("But %s blocked, no damage taken", (*enemy_current).name);newLine;
+				}
+				else{
+					printf("Anda tidak memiliki mana yang cukup!");
+				}
+			}
+			else if(string_compare(Skill(P), "Disarm")){
+				if(player_MP_current>=20){
+					(*enemy_current).DEF=abszero((*enemy_current).DEF-5);
+					player_MP_current-=20;
+					printf ("%s activated skill Disarm! Enemy DEF has fallen!", (*player_current).name);newLine;
+					printf ("But %s blocked, it's not as effective!", (*enemy_current).name);newLine;
+				}
+				else{
+					printf("Anda tidak memiliki mana yang cukup!");
+				}
+			}
+			else{
+				printf("Skill tidak terdaftar");newLine;
+			}
+		 }
+		 else if(player_command_buffer[i]=='S' && enemy_command_buffer[i] =='F'){
+			PrintTreeActive(skill_tree);
+			newLine;
+			printf ("Masukkan nama skill yang ingin dipakai: ");
+			scanf("%s", skill_choice); getchar();
+			P = SearchPB(skill_tree, skill_choice);
+			
+			if (string_compare(Skill(P), "Purification")){
+				if(player_MP_current>=20){
+					player_HP_current+=((*player_current).LVL*15);
+					if ((player_HP_current+=((*player_current).LVL*15))>((*player_current).HP)){
+						player_HP_current=(*player_current).HP;
+					}
+					player_MP_current-=20;
+					printf("%s healed for %d HP", (*player_current).name, (*player_current).LVL*10); newLine;
+					printf ("But %s flanked! You suffered %d damage!", (*enemy_current).name, abszero((*enemy_current).STR - (*player_current).DEF));newLine;
+					player_HP_current -= abszero((*enemy_current).STR - (*player_current).DEF);
+				}
+				else{
+					printf("Anda tidak memiliki mana yang cukup!");
+				}
+			}
+			else if(string_compare(Skill(P), "Dragon_Slave")){
+				if(player_MP_current>=20){
+					(player__active_modifier).STR=((*player_current).STR)*3;
+					player_MP_current-=20;
+					printf ("%s tried to flank ", (*enemy_current).name);newLine;
+					printf ("%s activated skill dragon_slave! Enemy suffered %d damage!", (*player_current).name, abszero((player__active_modifier).STR - (*enemy_current).DEF));newLine;
+					enemy_HP_current -= abszero((player__active_modifier).STR - (*enemy_current).DEF);
+				}
+				else{
+					printf("Anda tidak memiliki mana yang cukup!");
+				}
+			}
+			else if(string_compare(Skill(P), "Laguna_Blade")){
+				if(player_MP_current>=40){
+					(player__active_modifier).STR=((*player_current).STR)*7;
+					player_MP_current-=40;
+					printf ("%s tried to flank ", (*enemy_current).name);newLine;
+					printf ("%s activated skill laguna_blade! Enemy suffered %d damage!", (*player_current).name, abszero((player__active_modifier).STR - (*enemy_current).DEF));newLine;
+					enemy_HP_current -= abszero((player__active_modifier).STR - (*enemy_current).DEF);
+				}
+				else{
+					printf("Anda tidak memiliki mana yang cukup!");
+				}
+			}
+			else if(string_compare(Skill(P), "Desolator")){
+				if(player_MP_current>=25){
+					(*enemy_current).DEF=abszero((*enemy_current).DEF-25);
+					player_MP_current-=25;
+					printf ("%s tried to flank ", (*enemy_current).name);newLine;
+					printf("%s activated skill desolator, enemy DEF has fallen!", (*player_current).name);newLine;
+				}
+			}
+			else if(string_compare(Skill(P), "Warcry")){
+				if(player_MP_current>=10){
+					(player__active_modifier).STR=((*player_current).STR)*2;
+					player_MP_current-=10;
+					printf ("%s tried to flank ", (*enemy_current).name);newLine;
+					printf ("%s activated skill warcry! Enemy suffered %d damage!", (*player_current).name, abszero((player__active_modifier).STR - (*enemy_current).DEF));newLine;
+					enemy_HP_current -= abszero((player__active_modifier).STR - (*enemy_current).DEF);
+				}
+				else{
+					printf("Anda tidak memiliki mana yang cukup!");
+				}
+			}
+				else if(string_compare(Skill(P), "Backstab")){
+				if(player_MP_current>=15){
+					(*enemy_current).DEF=abszero((*enemy_current).DEF-5);
+					player_MP_current-=15;
+					printf ("%s tried to flank ", (*enemy_current).name);newLine;
+					printf ("%s activated skill backstab! Enemy DEF has fallen!", (*player_current).name);newLine;
+					enemy_HP_current -= abszero((*player_current).STR - (*enemy_current).DEF);
+				}
+				else{
+					printf("Anda tidak memiliki mana yang cukup!");
+				}
+			}
+			else if(string_compare(Skill(P), "Disarm")){
+				if(player_MP_current>=20){
+					(*enemy_current).DEF=abszero((*enemy_current).DEF-15);
+					player_MP_current-=20;
+				printf ("%s tried to flank ", (*enemy_current).name);newLine;
+					printf ("But %s activated skill Disarm! Enemy DEF has fallen!", (*player_current).name);newLine;
+				}
+				else{
+					printf("Anda tidak memiliki mana yang cukup!");
+				}
+			}
+			else{
+				printf("Skill tidak terdaftar");newLine;
+			}
+		 }
+			
 		//////////////////////////////////////////////////////////////////////////////
 		else
 		{
@@ -1346,7 +1645,8 @@ void battle_interaction(List player_command, Queue enemy_command, STATS *player_
 				(*player_current).STR+=3;
 				(*player_current).DEF+=3;
 				(*player_current).UP+=1;
-
+				
+				player_lvl_up(&player_HP_current, &player_MP_current, (*player_current).HP, (*player_current).MP);
 				player_stats_tulis();
 				pressEnterPrompt;
 				getchar();
@@ -1358,7 +1658,7 @@ void battle_interaction(List player_command, Queue enemy_command, STATS *player_
 			i++;
 		}
 	}
-}
+
 
 void Get_Exp(STATS *player_current, int enemy_exp)
 {
@@ -1368,6 +1668,12 @@ void Get_Exp(STATS *player_current, int enemy_exp)
 int lvl_up(int current_level)
 {
 	return (35 + (((current_level))*15));
+}
+
+void player_lvl_up(int *HP, int *MP, int MaxHP, int MaxMP){
+	
+	*HP = MaxHP;
+	*MP = MaxMP;
 }
 /////////////////////////////////	END		///////////////////////////////////////////////////////
 

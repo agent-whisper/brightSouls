@@ -1,1 +1,1 @@
-(God's_Blessing|0|2(Warrior's_Strength|0|3(Warcry|0|4()()())(Backstab|0|4()()())(Disarm|0|4()()()))()(Knight's_Fortitude|0|3(6th_Sense|0|4()()())(Riposte|0|4()()())()).
+(God's_Blessing|0|2(Warrior's_Strength|0|3(Warcry|0|4()()())(Backstab|0|4()()())(Disarm|0|4()()()))()(Knight's_Fortitude|0|3(Purification|0|4()()())(Dragon_Slave|0|4(Laguna_Blade|0|6()()())(Desolator|0|6()()())())()).
